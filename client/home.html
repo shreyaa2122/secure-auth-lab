@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Dashboard</title>
+
+    <style>
+
+        body {
+            margin: 0;
+            font-family: Arial;
+            background: #0f172a;
+            color: white;
+        }
+
+        .navbar {
+            background: #111827;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid cyan;
+        }
+
+        .navbar h2 {
+            color: cyan;
+        }
+
+        .container {
+            padding: 40px;
+        }
+
+        .cards {
+            display: flex;
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .card {
+            flex: 1;
+            background: #111827;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 0 15px rgba(0,255,255,0.1);
+            transition: 0.3s;
+            cursor: pointer;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 0 20px cyan;
+        }
+
+        .card h3 {
+            color: cyan;
+        }
+
+        .card p {
+            font-size: 2.5em;
+            color: #00ff99;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .status {
+            color: #00ff99;
+            font-weight: bold;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            overflow: auto;
+        }
+
+        .modal.active {
+            display: block;
+        }
+
+        .modal-content {
+            background-color: #111827;
+            margin: 5% auto;
+            padding: 20px;
+            border: 2px solid cyan;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 1200px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid cyan;
+            padding-bottom: 15px;
+        }
+
+        .modal-header h2 {
+            color: cyan;
+            margin: 0;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: cyan;
+            font-size: 28px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .close-btn:hover {
+            color: #00ff99;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        table th {
+            background-color: #1f2937;
+            color: cyan;
+            padding: 12px;
+            text-align: left;
+            border-bottom: 2px solid cyan;
+        }
+
+        table td {
+            padding: 12px;
+            border-bottom: 1px solid #374151;
+            color: #e5e7eb;
+        }
+
+        table tr:hover {
+            background-color: #1f2937;
+        }
+
+        .loading {
+            color: #00ff99;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .error {
+            color: #ff6b6b;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+
+        .status-success {
+            background-color: #22c55e;
+            color: white;
+        }
+
+        .status-failed {
+            background-color: #ef4444;
+            color: white;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<div class="navbar">
+    <h2>🛡 SecureAuth Dashboard</h2>
+    <button onclick="logout()">Logout</button>
+</div>
+
+<div class="container">
+    <h1>Welcome Admin 👋</h1>
+
+    <p class="status">
+        System Status: SECURE
+    </p>
+
+    <div class="cards">
+        <div class="card" onclick="openModal('login-attempts')">
+            <h3>Total Login Attempts</h3>
+            <p id="total-attempts">-</p>
+        </div>
+
+        <div class="card" onclick="openModal('failed-logins')">
+            <h3>Failed Logins</h3>
+            <p id="failed-logins">-</p>
+        </div>
+
+        <div class="card" onclick="openModal('blocked-ips')">
+            <h3>Blocked IPs</h3>
+            <p id="blocked-ips">-</p>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Login Attempts -->
+<div id="login-attempts-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Total Login Attempts</h2>
+            <button class="close-btn" onclick="closeModal('login-attempts')">&times;</button>
+        </div>
+        <div id="login-attempts-body">
+            <p class="loading">Loading...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Failed Logins -->
+<div id="failed-logins-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Failed Login Attempts</h2>
+            <button class="close-btn" onclick="closeModal('failed-logins')">&times;</button>
+        </div>
+        <div id="failed-logins-body">
+            <p class="loading">Loading...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Blocked IPs -->
+<div id="blocked-ips-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Blocked IP Addresses</h2>
+            <button class="close-btn" onclick="closeModal('blocked-ips')">&times;</button>
+        </div>
+        <div id="blocked-ips-body">
+            <p class="loading">Loading...</p>
+        </div>
+    </div>
+</div>
+
+<script src="home-script.js"></script>
+
+</body>
+
+</html>

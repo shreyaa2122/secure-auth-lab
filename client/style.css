@@ -1,0 +1,111 @@
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(
+        135deg,
+        #0f172a,
+        #111827,
+        #1e293b
+    );
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+/* Animated background glow */
+body::before {
+    content: "";
+    position: absolute;
+    width: 500px;
+    height: 500px;
+    background: rgba(0, 255, 255, 0.08);
+    border-radius: 50%;
+    top: -100px;
+    left: -100px;
+    filter: blur(100px);
+}
+
+body::after {
+    content: "";
+    position: absolute;
+    width: 400px;
+    height: 400px;
+    background: rgba(255, 0, 255, 0.08);
+    border-radius: 50%;
+    bottom: -100px;
+    right: -100px;
+    filter: blur(100px);
+}
+
+.login-box {
+    position: relative;
+    z-index: 10;
+    width: 350px;
+    padding: 40px;
+    background: rgba(17, 24, 39, 0.9);
+    border: 1px solid rgba(0,255,255,0.2);
+    border-radius: 20px;
+    box-shadow:
+        0 0 20px rgba(0,255,255,0.2),
+        0 0 60px rgba(0,255,255,0.1);
+    backdrop-filter: blur(10px);
+    text-align: center;
+}
+
+.login-box h2 {
+    color: #00ffff;
+    margin-bottom: 25px;
+    font-size: 30px;
+}
+
+input {
+    width: 100%;
+    padding: 14px;
+    margin-bottom: 15px;
+    border: none;
+    outline: none;
+    border-radius: 10px;
+    background: #1e293b;
+    color: white;
+    font-size: 15px;
+    transition: 0.3s;
+}
+
+input:focus {
+    box-shadow: 0 0 10px cyan;
+    transform: scale(1.02);
+}
+
+button {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    background: cyan;
+    color: black;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+button:hover {
+    background: #00bcd4;
+    transform: translateY(-2px);
+    box-shadow: 0 0 15px cyan;
+}
+
+#message {
+    margin-top: 10px;
+    color: #ff4d4d;
+    font-size: 14px;
+}
+
+.subtitle {
+    color: #94a3b8;
+    margin-bottom: 25px;
+    font-size: 14px;
+}

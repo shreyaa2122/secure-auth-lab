@@ -109,3 +109,43 @@ button:hover {
     margin-bottom: 25px;
     font-size: 14px;
 }
+.captcha-container{
+    display:flex;
+    gap:10px;
+    margin-bottom:15px;
+}
+
+#captchaBox{
+    flex:1;
+    background:#1e293b;
+    color:cyan;
+    font-size:22px;
+    font-weight:bold;
+    letter-spacing:4px;
+    text-align:center;
+    padding:12px;
+    border-radius:10px;
+}
+
+.refresh-btn{
+    width:60px;
+}
+
+/* Visual error state for inputs (CAPTCHA) */
+.input-error {
+    box-shadow: 0 0 10px rgba(255, 77, 77, 0.9) !important;
+    border: 1px solid #ff4d4d !important;
+    background: #2b2b2b;
+}
+
+@keyframes shake {
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    50% { transform: translateX(6px); }
+    75% { transform: translateX(-4px); }
+    100% { transform: translateX(0); }
+}
+
+.shake {
+    animation: shake 0.36s ease;
+}

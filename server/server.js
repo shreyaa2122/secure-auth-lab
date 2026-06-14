@@ -1,14 +1,26 @@
 const express = require("express");
 const cors = require("cors");
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(helmet());
+
+// Rate limiting configuration
+const limiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 5, // 5 requests per minute
+  message: "Too many login attempts"
+});
+
+app.use("/login", limiter);
 
 // Serve static files from the client directory
 app.use(
@@ -101,9 +113,19 @@ CREATE TABLE IF NOT EXISTS login_attempts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT,
   ip_address TEXT,
-  login_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-  status TEXT
-)`);
+  status TEXT,
+  login_time DATETIME DEFAULT CURRENT_TIMESTAMP
+)
+  `);
+
+  db.prepare(`
+CREATE TABLE IF NOT EXISTS email_verification (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT,
+    otp TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)
+`).run();
 
   // Create blocked_ips table if missing
   db.run(`
@@ -288,7 +310,95 @@ app.post("/login", (req, res) => {
   });
 });
 
+/* ================= VULNERABLE LOGIN (SQL INJECTION DEMO) ================= */
+
+app.post("/vulnerable-login", (req, res) => {
+  const { username, password } = req.body;
+
+  const query = `
+    SELECT * FROM users
+    WHERE username='${username}'
+    AND password='${password}'
+  `;
+
+  console.log(query);
+
+  try {
+    db.get(query, (err, user) => {
+      if (err) {
+        return res.json({
+          success: false,
+          error: err.message
+        });
+      }
+
+      if (user) {
+        return res.json({
+          success: true,
+          vulnerable: true,
+          message: "SQL Injection Success"
+        });
+      }
+
+      res.json({
+        success: false
+      });
+    });
+  } catch (err) {
+    res.json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
 /* ================= API ENDPOINTS FOR DASHBOARD STATS ================= */
+
+// Simple stats endpoint for dashboard
+app.get("/stats", (req, res) => {
+  const total = new Promise((resolve, reject) => {
+    db.get(
+      `SELECT COUNT(*) as count FROM login_attempts`,
+      (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      }
+    );
+  });
+
+  const failed = new Promise((resolve, reject) => {
+    db.get(
+      `SELECT COUNT(*) as count FROM login_attempts WHERE status='FAILED'`,
+      (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      }
+    );
+  });
+
+  const success = new Promise((resolve, reject) => {
+    db.get(
+      `SELECT COUNT(*) as count FROM login_attempts WHERE status='SUCCESS'`,
+      (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      }
+    );
+  });
+
+  Promise.all([total, failed, success])
+    .then(([totalResult, failedResult, successResult]) => {
+      res.json({
+        total: totalResult.count,
+        failed: failedResult.count,
+        success: successResult.count
+      });
+    })
+    .catch((err) => {
+      console.log("Error fetching stats:", err);
+      res.status(500).json({ error: "Server error" });
+    });
+});
 
 // Get total login attempts, failed logins, and blocked IPs
 app.get("/api/stats", (req, res) => {

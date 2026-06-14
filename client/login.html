@@ -6,6 +6,7 @@
 </head>
 
 <body>
+ 
 
 <div class="login-box">
 
@@ -27,7 +28,15 @@
         placeholder="Enter Password"
     >
 
-    <button onclick="login()">
+    <!-- CAPTCHA placed below the password field -->
+    <div class="captcha-container">
+        <div id="captchaBox"></div>
+        <button type="button" id="refreshCaptcha" class="refresh-btn">↻</button>
+    </div>
+
+    <input type="text" id="captchaInput" placeholder="Enter CAPTCHA" />
+
+    <button id="loginButton">
         Login
     </button>
 
@@ -35,34 +44,7 @@
 
 </div>
 
-<script>
-
-async function login() {
-
-    const username = document.getElementById("username").value.trim();
-    const password = document.getElementById("password").value.trim();
-
-    const response = await fetch("/login", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            email: username,
-            password
-        })
-    });
-    const data = await response.json();
-
-    if (data.token) {
-        // login successful
-        window.location.href = "home.html";
-    } else {
-        document.getElementById("message").innerText = data.message || "Incorrect Credentials";
-    }
-}
-
-</script>
+<script src="login.js"></script>
 
 </body>
 </html>

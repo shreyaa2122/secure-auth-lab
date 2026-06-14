@@ -184,7 +184,7 @@
 
 <div class="navbar">
     <h2>🛡 SecureAuth Dashboard</h2>
-    <button onclick="logout()">Logout</button>
+    <button id="logoutButton">Logout</button>
 </div>
 
 <div class="container">
@@ -195,19 +195,19 @@
     </p>
 
     <div class="cards">
-        <div class="card" onclick="openModal('login-attempts')">
+        <div class="card" data-modal="login-attempts">
             <h3>Total Login Attempts</h3>
-            <p id="total-attempts">-</p>
+            <p id="totalLogins">0</p>
         </div>
 
-        <div class="card" onclick="openModal('failed-logins')">
+        <div class="card" data-modal="failed-logins">
             <h3>Failed Logins</h3>
-            <p id="failed-logins">-</p>
+            <p id="failedLogins">0</p>
         </div>
 
-        <div class="card" onclick="openModal('blocked-ips')">
-            <h3>Blocked IPs</h3>
-            <p id="blocked-ips">-</p>
+        <div class="card">
+            <h3>Successful Logins</h3>
+            <p id="successLogins">0</p>
         </div>
     </div>
 </div>
@@ -217,7 +217,7 @@
     <div class="modal-content">
         <div class="modal-header">
             <h2>Total Login Attempts</h2>
-            <button class="close-btn" onclick="closeModal('login-attempts')">&times;</button>
+            <button class="close-btn" data-close="login-attempts">&times;</button>
         </div>
         <div id="login-attempts-body">
             <p class="loading">Loading...</p>
@@ -230,7 +230,7 @@
     <div class="modal-content">
         <div class="modal-header">
             <h2>Failed Login Attempts</h2>
-            <button class="close-btn" onclick="closeModal('failed-logins')">&times;</button>
+            <button class="close-btn" data-close="failed-logins">&times;</button>
         </div>
         <div id="failed-logins-body">
             <p class="loading">Loading...</p>
@@ -243,7 +243,7 @@
     <div class="modal-content">
         <div class="modal-header">
             <h2>Blocked IP Addresses</h2>
-            <button class="close-btn" onclick="closeModal('blocked-ips')">&times;</button>
+            <button class="close-btn" data-close="blocked-ips">&times;</button>
         </div>
         <div id="blocked-ips-body">
             <p class="loading">Loading...</p>
@@ -252,7 +252,6 @@
 </div>
 
 <script src="home-script.js"></script>
-
 </body>
 
 </html>

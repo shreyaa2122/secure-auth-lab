@@ -1,26 +1,38 @@
-const API_BASE_URL = "http://localhost:5000";
+const statsUrl = "/stats";
 
 // Load stats when page loads
 document.addEventListener("DOMContentLoaded", () => {
     loadStats();
-    // Refresh stats every 10 seconds
     setInterval(loadStats, 10000);
+
+    const logoutButton = document.getElementById("logoutButton");
+    if (logoutButton) {
+        logoutButton.addEventListener("click", logout);
+    }
+
+    document.querySelectorAll(".card[data-modal]").forEach((card) => {
+        card.addEventListener("click", () => openModal(card.dataset.modal));
+    });
+
+    document.querySelectorAll(".close-btn[data-close]").forEach((button) => {
+        button.addEventListener("click", () => closeModal(button.dataset.close));
+    });
 });
 
 // Load dashboard statistics
 async function loadStats() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/stats`);
+        const response = await fetch(statsUrl);
         const data = await response.json();
 
-        document.getElementById("total-attempts").textContent = data.total_attempts || 0;
-        document.getElementById("failed-logins").textContent = data.failed_logins || 0;
-        document.getElementById("blocked-ips").textContent = data.blocked_ips || 0;
+        document.getElementById("totalLogins").textContent = data.total || 0;
+        document.getElementById("failedLogins").textContent = data.failed || 0;
+        document.getElementById("successLogins").textContent = data.success || 0;
     } catch (error) {
         console.error("Error loading stats:", error);
-        document.getElementById("total-attempts").textContent = "Error";
-        document.getElementById("failed-logins").textContent = "Error";
-        document.getElementById("blocked-ips").textContent = "Error";
+        document.getElementById("totalLogins").textContent = "Error";
+        document.getElementById("failedLogins").textContent = "Error";
+        document.getElementById("successLogins").textContent = "Error";
     }
 }
 
@@ -28,6 +40,10 @@ async function loadStats() {
 async function openModal(type) {
     const modal = document.getElementById(`${type}-modal`);
     const body = document.getElementById(`${type}-body`);
+
+    if (!modal || !body) {
+        return;
+    }
 
     modal.classList.add("active");
     body.innerHTML = '<p class="loading">Loading...</p>';
@@ -42,7 +58,7 @@ async function openModal(type) {
             endpoint = "/api/blocked-ips";
         }
 
-        const response = await fetch(`${API_BASE_URL}${endpoint}`);
+        const response = await fetch(endpoint);
         const data = await response.json();
 
         if (type === "blocked-ips") {
@@ -59,7 +75,9 @@ async function openModal(type) {
 // Close modal
 function closeModal(type) {
     const modal = document.getElementById(`${type}-modal`);
-    modal.classList.remove("active");
+    if (modal) {
+        modal.classList.remove("active");
+    }
 }
 
 // Display login attempts table

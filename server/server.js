@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
@@ -13,14 +13,49 @@ app.use(cors());
 app.use(express.json());
 app.use(helmet());
 
+function getClientIP(req) {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (forwarded) {
+    return forwarded.split(",")[0].trim();
+  }
+  return req.socket.remoteAddress || req.ip;
+}
+
+const checkBlockedIPMiddleware = (req, res, next) => {
+  const ip = getClientIP(req);
+  checkIfIPBlocked(ip, (err, blocked) => {
+    if (err) {
+      console.log("Error checking blocked IPs:", err);
+      return res.status(500).send("Server error");
+    }
+
+    if (blocked) {
+      return res.status(403).sendFile(path.join(__dirname, "../client/blocked.html"));
+    }
+
+    next();
+  });
+};
+
+// Basic email format validation
+function isValidEmail(email) {
+  if (!email || typeof email !== 'string') return false;
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return re.test(email);
+}
+
 // Rate limiting configuration
 const limiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
-  max: 5, // 5 requests per minute
+  max: 1000, // high enough to avoid blocking legitimate test attempts
   message: "Too many login attempts"
 });
 
 app.use("/login", limiter);
+
+app.get(["/", "/login.html"], checkBlockedIPMiddleware, (req, res) => {
+  res.sendFile(path.join(__dirname, "../client/login.html"));
+});
 
 // Serve static files from the client directory
 app.use(
@@ -134,8 +169,29 @@ CREATE TABLE IF NOT EXISTS blocked_ips (
   ip_address TEXT UNIQUE,
   reason TEXT,
   blocked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  unblock_at DATETIME,
   failed_attempts INTEGER DEFAULT 0
 )`);
+
+  db.all(`PRAGMA table_info(blocked_ips)`, (err, rows) => {
+    if (err) {
+      console.log("Error reading blocked_ips schema info:", err.message);
+      return;
+    }
+
+    const hasUnblockAt = rows.some((row) => row.name === "unblock_at");
+    if (!hasUnblockAt) {
+      db.run(`ALTER TABLE blocked_ips ADD COLUMN unblock_at DATETIME`, (alterErr) => {
+        if (alterErr) {
+          console.log("Error adding unblock_at column:", alterErr.message);
+        } else {
+          console.log("Added unblock_at column to blocked_ips table");
+        }
+      });
+    }
+  });
+
+  db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_blocked_ips_ip_address ON blocked_ips(ip_address)`);
 });
 
 /* ================= REGISTER ================= */
@@ -147,6 +203,10 @@ app.post("/register", async (req, res) => {
     return res.status(400).json({
       message: "All fields required",
     });
+  }
+
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ message: "Invalid email format" });
   }
 
   try {
@@ -177,42 +237,57 @@ app.post("/register", async (req, res) => {
 /* ================= IP BLOCKING LOGIC ================= */
 
 const MAX_FAILED_ATTEMPTS = 5;
-const BLOCK_DURATION_MINUTES = 30;
+const BLOCK_DURATION_HOURS = 6;
 
 function checkIfIPBlocked(ip, callback) {
   db.get(
-    `SELECT * FROM blocked_ips WHERE ip_address = ? AND blocked_at > datetime('now', '-' || ? || ' minutes')`,
-    [ip, BLOCK_DURATION_MINUTES],
+    `SELECT * FROM blocked_ips WHERE ip_address = ?`,
+    [ip],
     (err, row) => {
-      callback(err, row);
+      if (err) {
+        return callback(err);
+      }
+
+      if (!row) {
+        return callback(null, null);
+      }
+
+      if (row.unblock_at) {
+        if (new Date(row.unblock_at) > new Date()) {
+          return callback(null, row);
+        }
+
+        return db.run(
+          `DELETE FROM blocked_ips WHERE ip_address = ?`,
+          [ip],
+          (deleteErr) => {
+            if (deleteErr) {
+              return callback(deleteErr);
+            }
+            callback(null, null);
+          }
+        );
+      }
+
+      return callback(null, null);
     }
   );
 }
 
 function incrementFailedAttempts(ip, callback) {
-  db.get(
-    `SELECT failed_attempts FROM blocked_ips WHERE ip_address = ?`,
-    [ip],
-    (err, row) => {
-      if (err) {
-        callback(err);
-        return;
-      }
+  const now = new Date();
+  const unblockTime = new Date(now.getTime() + BLOCK_DURATION_HOURS * 60 * 60 * 1000);
+  const unblockAtISOString = unblockTime.toISOString();
 
-      if (row) {
-        db.run(
-          `UPDATE blocked_ips SET failed_attempts = failed_attempts + 1 WHERE ip_address = ?`,
-          [ip],
-          callback
-        );
-      } else {
-        db.run(
-          `INSERT INTO blocked_ips (ip_address, reason, failed_attempts) VALUES (?, ?, ?)`,
-          [ip, 'Multiple failed login attempts', 1],
-          callback
-        );
-      }
-    }
+  db.run(
+    `INSERT INTO blocked_ips (ip_address, reason, failed_attempts, blocked_at, unblock_at)
+     VALUES (?, ?, 1, CURRENT_TIMESTAMP, NULL)
+     ON CONFLICT(ip_address) DO UPDATE SET
+       failed_attempts = failed_attempts + 1,
+       blocked_at = CURRENT_TIMESTAMP,
+       unblock_at = CASE WHEN failed_attempts + 1 >= ? THEN ? ELSE NULL END`,
+    [ip, 'Multiple failed login attempts', MAX_FAILED_ATTEMPTS, unblockAtISOString],
+    callback
   );
 }
 
@@ -220,7 +295,11 @@ function incrementFailedAttempts(ip, callback) {
 
 app.post("/login", (req, res) => {
   const { email, password } = req.body;
-  const ip = req.ip;
+  const ip = getClientIP(req);
+
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ message: "Invalid email format" });
+  }
 
   console.log("Login attempt for email:", email, "from IP:", ip);
 
@@ -421,7 +500,7 @@ app.get("/api/stats", (req, res) => {
           }
 
           db.all(
-            `SELECT COUNT(DISTINCT ip_address) as blocked_ips FROM blocked_ips WHERE blocked_at > datetime('now', '-30 minutes')`,
+            `SELECT COUNT(DISTINCT ip_address) as blocked_ips FROM blocked_ips WHERE unblock_at > CURRENT_TIMESTAMP`,
             [],
             (err, blockedResult) => {
               if (err) {
@@ -480,6 +559,21 @@ app.get("/api/blocked-ips", (req, res) => {
     (err, rows) => {
       if (err) {
         console.log("Error fetching blocked IPs:", err);
+        return res.status(500).json({ message: "Server error" });
+      }
+      res.json(rows || []);
+    }
+  );
+});
+
+// Get currently active blocked IPs and unblock times
+app.get("/api/active-blocked-ips", (req, res) => {
+  db.all(
+    `SELECT id, ip_address, reason, blocked_at, unblock_at, failed_attempts FROM blocked_ips WHERE unblock_at > CURRENT_TIMESTAMP ORDER BY unblock_at ASC`,
+    [],
+    (err, rows) => {
+      if (err) {
+        console.log("Error fetching active blocked IPs:", err);
         return res.status(500).json({ message: "Server error" });
       }
       res.json(rows || []);

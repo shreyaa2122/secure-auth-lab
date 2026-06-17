@@ -14,6 +14,12 @@ function generateCaptcha() {
   if (box) box.innerText = generatedCaptcha;
 }
 
+// Simple email format validation
+function isValidEmail(email) {
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return re.test(email);
+}
+
 const refreshBtn = document.getElementById("refreshCaptcha");
 if (refreshBtn) refreshBtn.addEventListener("click", generateCaptcha);
 
@@ -33,9 +39,20 @@ function getServerUrl() {
 }
 
 async function login() {
-  const username = document.getElementById("username").value.trim();
+  const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value.trim();
   const userCaptcha = document.getElementById("captchaInput").value.trim();
+
+  if (!email || !password) {
+    messageEl.innerText = "Please enter both email and password.";
+    return;
+  }
+
+  // Validate email format
+  if (!isValidEmail(email)) {
+    messageEl.innerText = "Please enter a valid email address.";
+    return;
+  }
 
   // Validate CAPTCHA before sending credentials to server
   if (!userCaptcha || userCaptcha.toUpperCase() !== generatedCaptcha) {
@@ -62,24 +79,26 @@ async function login() {
     return;
   }
 
-  const response = await fetch("/login", {
+  const response = await fetch(`${serverUrl}/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      email: username,
+      email,
       password,
     }),
   });
 
-  const data = await response.json();
+  const data = await response.json().catch(() => null);
 
-  if (response.ok && data.token) {
+  if (response.ok && data && data.token) {
     window.location.href = "home.html";
-  } else {
-    messageEl.innerText = data.message || "Incorrect Credentials";
+    return;
   }
+
+  const errorMessage = (data && data.message) ? data.message : "Incorrect credentials.";
+  messageEl.innerText = errorMessage;
 }
 
 if (loginButton) {
